@@ -30,18 +30,25 @@ struct ContentView: View {
 struct homePageContent: View {
     @EnvironmentObject var vm: UserAuthModel
     @ObservedObject var d = download()
+    @State var data: [String] = []
+    
     var body: some View {
         ScrollView(showsIndicators: false){
             VStack{
                 Spacer()
                 VStack{
                     Spacer().frame(height: 60)
-                    Button(action: {d.retrieveImage()}){
+                    Button(action: {
+                        d.retrieveImage { data in
+//                            print(data) // prints a list of all the URLs stored in your FireBase Store document
+                            self.data = data
+                        }
+                    }){
                         Text("Download")
                     }
-                    examplePost()
-                    examplePost()
-                    examplePost()
+                    ForEach(data, id: \.self) {
+                        examplePost(url: $0)
+                    }
                 }
                 HStack{
                     Spacer()
@@ -63,10 +70,19 @@ struct homePageContent: View {
 }
 
 struct examplePost: View {
+    @State var imageURL: String
+    init(url: String) {
+        self.imageURL = url
+    }
     var body: some View {
-        Rectangle()
-            .fill(Color.gray)
-            .frame(width: 360, height: 270)
+        AsyncImage(url: URL(string: "\(imageURL)")) { phase in
+            if let image = phase.image {
+                image.resizable()
+                    .aspectRatio(contentMode: .fill)
+            }
+        }
+        .frame(width: 360, height: 270)
+        .background(Color.gray)
         HStack{
             Text("Skill").mediumText()
             Spacer()

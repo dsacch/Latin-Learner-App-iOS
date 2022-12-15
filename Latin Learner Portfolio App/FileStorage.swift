@@ -93,9 +93,9 @@ class upload: ObservableObject {
     func storeUserInformation(file: URL, tag: String, name: String) {
         guard let uid = FirebaseManager.shared.auth.currentUser?.uid else { return }
 //        guard let email = FirebaseManager.shared.auth.currentUser?.email else { return }
-        let userData = ["uid": uid, "\(name)": file.absoluteString]
+        let userData = ["url": file.absoluteString, "tag": tag]
         FirebaseManager.shared.firestore.collection("users")
-            .document(uid).collection("files").document(tag)
+            .document(uid).collection("files").document(name)
             .setData(userData) { err in
                 if let err = err {
                     print("Failed to store data: \(err)")
@@ -107,29 +107,28 @@ class upload: ObservableObject {
 }
 
 class download: ObservableObject {
-    @Published var userUID: String = "Not Loaded Yet"
-    @Published var fileURL: String = "Not Loaded Yet"
-    @Published var userEmail: String = "Not Loaded Yet"
-    
-    func retrieveImage() {
+    func retrieveImage(completion: @escaping (([String]) -> Void)) -> Void {
         guard let uid = FirebaseManager.shared.auth.currentUser?.uid else {
             print("Failed to find user uid")
             return
         }
-        var main = FirebaseManager.shared.firestore.collection("users")
-            .document(uid).collection("tags")
         
-            main.document("Le Outdoors").getDocument { snapshot, err in
-                if let err = err {
-                    print("Failed to retrieve current user: \(err)")
-                    return
-                }
-                guard let data = snapshot?.data() else { return }
-                print(data)
-                self.userUID = data["uid"] as! String
-                // self.fileURL = data["testURL"] as! String
-//                self.userEmail = data["email"] as! String
+        let main = FirebaseManager.shared.firestore.collection("users")
+            .document(uid).collection("files")
+        main.getDocuments { snapshot, err in
+            if let err = err {
+                print("Failed to retrieve current user: \(err)")
+                return
             }
+            guard let data = snapshot?.documents else { return }
+            var dataFinal: [String] = []
+            for each in data {
+//                print(each.documentID as! String) // prints document name
+//                print(each["url"] as! String)
+                dataFinal.append(each["url"] as! String)
+            }
+            completion(dataFinal)
+        }
     }
 }
 
@@ -141,7 +140,6 @@ struct ImageUpload: View {
     @State var fileNameUpload = ""
     
     @ObservedObject var u = upload()
-    @ObservedObject var d = download()
     
     var body: some View {
         if(!u.uploadInProgress){
@@ -176,28 +174,6 @@ struct ImageUpload: View {
                         Button(action: {
                             u.persistImageToStorage(image: image, tag: tagSelectionUpload, name: fileNameUpload)
                         }) { Text("Publish Image").mediumText().padding(15) }.publishButton().padding()
-                    }
-//                    Picker("Select a tag", selection: $tagSelectionDownload) {
-//                        ForEach(tags, id: \.self) {
-//                            Text($0)
-//                        }
-//                    }.pickerStyle(.menu)
-//                    TextField("File Name", text: $fileNameDownload)
-                    Button("retrieveImage") {
-                        d.retrieveImage()
-                    }
-                    VStack {
-//                        Text("UID: \(d.userUID)")
-//                        Text("EMAIL: \(d.userEmail)")
-//                        Text("URL: \(d.fileURL)")
-//                        AsyncImage(url: URL(string: "\(d.fileURL)")) { phase in
-//                            if let image = phase.image {
-//                                image.resizable()
-//                                    .aspectRatio(contentMode: .fill)
-//                            }
-//                        }
-//                            .frame(width: 64, height: 64)
-//                            .background(Color.gray)
                     }
                 }
                 .padding()
